@@ -1,0 +1,9 @@
+[package]
+name = "data-station"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ollama-rs = "0.3.1"
+sqlite = "0.37.0"
+tokio = { version = "1.45.1", features = ["full"] }
