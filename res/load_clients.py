@@ -17,14 +17,18 @@ class Client:
 if __name__ == '__main__':
 	with sqlite3.connect("clients.db") as con:
 		cur = con.cursor()
-		count = -1
-		with open("clients.csv") as data:
-			for line in data:
-				count += 1
-				if count == 0:
-					continue
+		cur.execute(
+			"""
+			create table Client(name text,surname text,country text,city text,balance real,password text,email text);
+			"""
+		)
+		with open("clients.csv", "r") as fs:
+			headers = fs.readline()
+			count = 0
+			for line in fs:
 				client = Client(line.split(','))
 				client.insert(cur)
+				count += 1
 
 		con.commit()
 		print("Loaded", count, "lines into database !")

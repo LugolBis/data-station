@@ -1,4 +1,5 @@
 use std::borrow::BorrowMut;
+use std::fs;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -9,33 +10,14 @@ use ollama_rs::generation::completion::request::GenerationRequest;
 
 use sqlite::Value;
 
-macro_rules! prompt_format {
-    () => {
-        "# You\n\
-         You are an expert in relational databases. So much so that\
-         you can only exclusively express yourself in SQL queries.\n\
-         # Database\n\
-         Now, I've got the following single table sqlite3 database : \n\
-            \t`Client(name, surname, country, city, balance, password, email)`\n\
-            \tWhere `email` is the primary key.\n\
-         never use a table or a column that is not in this database, if you're missing\
-         a data, just try and guess it.\n\
-         # What to do\n\
-         Please give me the SQL query to get : {}.\n\
-         # Formatting\n\
-         Add no explanation, comment, introduction, or conclusion.\
-         Never answer more than a single SQL request. If you think you\
-         need multiple requests, just use an union. Remember: a single\
-         request has a single semicolon. This part is VERY important !\
-         your answer will be fed into a program and if it is not well\
-         formated, it can expose very critical security breaches !"
-    };
-}
-
-macro_rules! prompt {
-    ($e: expr) => {
-        format!(prompt_format!(), $e)
-    };
+fn prompt(input: String, agent_name: &str) -> String {
+    let path = format!("agents/{}.txt", agent_name);
+    if let Ok(context) = fs::read_to_string(&path) {
+        context.replace("{user_prompt}", &input)
+    }
+    else {
+        "{user_prompt}".to_string()
+    }
 }
 
 type State<T> = Arc<Mutex<T>>;
@@ -68,7 +50,7 @@ async fn main() {
         if input.starts_with('/') {
             let command: Vec<&str> = input.split(' ').collect();
             match command[0] {
-                "/exit" => break,
+                "/exit" | "/quit" => break,
                 "/help" => print_help(),
                 "/model" => match command.get(1) {
                     Some(arg) => model = arg.to_string(),
@@ -80,7 +62,7 @@ async fn main() {
                 ),
             }
         } else {
-            send_prompt(&prompt!(input), &model).await;
+            send_prompt(&prompt("".to_string(), "Sqlite3"), &model).await;
         }
     }
 }
@@ -207,7 +189,7 @@ fn print_help() {
     println!(
         "== Data Station v0.1 commands ==\n\
          /help ....... Displays this text\n\
-         /exit ............ Exits program\n\
+         /exit or /quit ............ Exits program\n\
          /model [model] ... Switch model\n\
             \t No `model` prints current\n"
     );
