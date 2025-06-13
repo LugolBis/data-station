@@ -1,13 +1,6 @@
-use std::borrow::BorrowMut;
-use std::io::Write;
-use std::sync::{Arc, Mutex};
-use std::thread;
-
 use ollama_rs::Ollama;
-use ollama_rs::error::OllamaError;
-use ollama_rs::generation::completion::{request::GenerationRequest, GenerationResponse};
+use ollama_rs::generation::completion::request::GenerationRequest;
 use mylog::{error};
-use tokio::sync::oneshot::error;
 
 use crate::tools::*;
 use crate::utils::*;
@@ -86,6 +79,7 @@ pub async fn launch_agent(prompt: &str, model: &str, state_agent: State<String>)
                                         error!("Can't get mut the client_msg.")
                                     }
                                 }
+                                return;
                             }
                         }
                     },
@@ -101,6 +95,7 @@ pub async fn launch_agent(prompt: &str, model: &str, state_agent: State<String>)
                                 error!("Can't get mut the client_msg.")
                             }
                         }
+                        return;
                     }
                 }
             }
@@ -126,6 +121,7 @@ pub async fn launch_agent(prompt: &str, model: &str, state_agent: State<String>)
                     error!("Can't get mut the client_msg.")
                 }
             }
+            return;
         }
     }
 }
@@ -151,7 +147,7 @@ async fn call_tool(agent_name: &str, agent_prompt: String) -> Result<String, Str
             action_files(path, action.as_str(), content)
         },
         _ => {
-            error!("Unknow agent.");
+            error!("Unknow agent : {}",agent_name);
             Err(format!("The following {} Agent hasn't access to a tool.", agent_name))
         }
     }

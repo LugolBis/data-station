@@ -5,14 +5,19 @@ mod agent;
 
 use std::io::Write;
 use std::sync::{Arc, Mutex};
-use std::thread;
 use std::time::Duration;
+use tokio;
+use std::io;
 use client::*;
 use utils::*;
 use mylog::{error};
 
 #[tokio::main]
 async fn main() {
+    ui().await;
+}
+
+async fn ui() {
     println!(
         "Welcome to Data Station v0.1 !\nStart prompting or type `/help` for a list of commands."
     );
@@ -20,7 +25,7 @@ async fn main() {
     loop {
         let mut model = "gemma3:latest".to_string();
 
-        print!(">>> ");
+        print!("\r>>> ");
         let _ = std::io::stdout().flush();
 
         // Reading user input
@@ -56,19 +61,20 @@ async fn main() {
         } else {
             let state_client = State::new(Mutex::new((String::new(), true)));
 
-            let client_thread = thread::spawn({
+            let client_thread = tokio::spawn({
                 let state_agent = Arc::clone(&state_client);
                 async move || {
                     client(input, model, state_agent).await;
                 }
-            });
+            } ());
 
-            while state_client.lock().unwrap().1 {
-                thread::sleep(Duration::from_millis(300));
+            let mut run = true;
+            while run {
+                let _ = tokio::time::sleep(Duration::from_millis(10)).await;
                 if let Ok(client_msg) = &state_client.lock() {
-                    //let _ = std::io::stdout().flush();
+                    run = client_msg.1;
                     if !client_msg.0.is_empty() {
-                        println!("\r{}", client_msg.0)
+                        print!("\r{}", client_msg.0)
                     }
                 }
                 else {
@@ -80,6 +86,7 @@ async fn main() {
                 // Print the final result of the agents
                 if let Ok(client_msg) = &state_client.lock() {
                     if !client_msg.0.is_empty() {
+                        print!("\r");
                         println!("{}", client_msg.0)
                     }
                 }
@@ -88,7 +95,7 @@ async fn main() {
                 }
             }
 
-            let _ = client_thread.join();
+            let _ = client_thread.await;
             drop(state_client);
         }
     }

@@ -16,6 +16,8 @@ Do not skip steps. If multiple agents are needed, structure the steps in the cor
 
 Always base your plan strictly on the user's input and the known capabilities of each agent and their tools.
 
+If you don't need any tool, just write LLM_Core on the first line and copy the user input.
+
 ---
 
 **Available Agents and Tools**:

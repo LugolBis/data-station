@@ -4,7 +4,6 @@ use std::{fs::OpenOptions, path::PathBuf};
 use std::io::{Read, Write};
 
 use sqlite::Value;
-use mylog::{error};
 
 pub async fn query_sqlite3(query: String) -> Result<String, String> {
     let con = sqlite::open("res/clients.db");
@@ -107,7 +106,7 @@ pub fn action_files(path: &str, action: &str, content: String) -> Result<String,
             match OpenOptions::new().read(true).open(&path) {
                 Ok(mut file) => {
                     let mut result = String::new();
-                    file.read_to_string(&mut result);
+                    let _ = file.read_to_string(&mut result);
                     Ok(result)
                 }
                 Err(error) => {
