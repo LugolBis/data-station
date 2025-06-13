@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use crate::utils::State;
 use crate::agent::launch_agent;
+use mylog::*;
 
 pub async fn client(prompt: String, model_name: String, state: State<String>) {
     let state_agent = State::new(Mutex::new((String::new(), true)));
@@ -24,7 +25,7 @@ pub async fn client(prompt: String, model_name: String, state: State<String>) {
             // We get the current state of the agent and send it to the UI !
             let agent_msg = &state_agent.lock().unwrap().0;
             let ui_msg = &mut state.lock().unwrap().0;
-            ui_msg.clear();
+            //ui_msg.clear();
             ui_msg.push_str(&format!("{}{}                    ",agent_msg, ".".repeat(points)));
         }
 

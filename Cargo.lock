@@ -119,6 +119,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 name = "data-station"
 version = "0.1.0"
 dependencies = [
+ "mylog",
  "ollama-rs",
  "sqlite",
  "tokio",
@@ -551,6 +552,15 @@ dependencies = [
  "libc",
  "wasi 0.11.1+wasi-snapshot-preview1",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "mylog"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "969eac0c3ad88dc3a50f05c2b47b031130d6bbc3b52e1e435b38a0d05cea1f83"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

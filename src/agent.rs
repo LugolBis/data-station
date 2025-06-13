@@ -6,6 +6,7 @@ use std::thread;
 use ollama_rs::Ollama;
 use ollama_rs::error::OllamaError;
 use ollama_rs::generation::completion::{request::GenerationRequest, GenerationResponse};
+use mylog::*;
 
 use crate::tools::*;
 use crate::utils::*;

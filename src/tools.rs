@@ -4,6 +4,7 @@ use std::{fs::OpenOptions, path::PathBuf};
 use std::io::{Read, Write};
 
 use sqlite::Value;
+use mylog::*;
 
 pub async fn query_sqlite3(query: String) -> Result<String, String> {
     let con = sqlite::open("res/clients.db");

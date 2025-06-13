@@ -5,8 +5,11 @@ mod agent;
 
 use std::io::Write;
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 use client::*;
 use utils::*;
+use mylog::*;
 
 #[tokio::main]
 async fn main() {
@@ -14,9 +17,9 @@ async fn main() {
         "Welcome to Data Station v0.1 !\nStart prompting or type `/help` for a list of commands."
     );
 
-    let mut model = "gemma3:latest".to_string();
-
     loop {
+        let mut model = "gemma3:latest".to_string();
+
         print!(">>> ");
         let _ = std::io::stdout().flush();
 
@@ -39,7 +42,10 @@ async fn main() {
                 "/exit" | "/quit" => break,
                 "/help" => print_help(),
                 "/model" => match command.get(1) {
-                    Some(arg) => model = arg.to_string(),
+                    Some(arg) => {
+                        model.clear();
+                        model.push_str(arg);
+                    },
                     None => println!("Current model: {model}"),
                 },
                 _ => println!(
@@ -50,7 +56,30 @@ async fn main() {
         } else {
             let state_client = State::new(Mutex::new((String::new(), true)));
 
-            todo!("Integrate the 'client' function to this loop to launch the execution of a prompt.")
+            let client_thread = thread::spawn({
+                let state_agent = Arc::clone(&state_client);
+                async move || {
+                    client(input, model, state_agent).await;
+                }
+            });
+
+            while state_client.lock().unwrap().1 {
+                thread::sleep(Duration::from_millis(300));
+                let client_msg = &state_client.lock().unwrap().0;
+                let _ = std::io::stdout().flush();
+                if !client_msg.is_empty() {
+                    println!("\r{}", client_msg)
+                }
+            }
+
+            {
+                let client_msg = &state_client.lock().unwrap().0;
+                println!("{}",client_msg);
+            }
+
+            let _ = client_thread.join();
+
+            drop(state_client);
         }
     }
 }
