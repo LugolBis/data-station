@@ -5,10 +5,10 @@ use std::io::{Read, Write};
 
 use sqlite::Value;
 
-pub async fn query_sqlite3(query: String) {
+pub async fn query_sqlite3(query: String) -> Result<String, String> {
     let con = sqlite::open("res/clients.db");
     match con {
-        Err(e) => println!("\rCould not connect to database : {e}"),
+        Err(e) => Err(format!("\rCould not connect to database : {e}")),
         Ok(con) => {
             // Sanitizing prompt's response
             let query = query
@@ -22,8 +22,9 @@ pub async fn query_sqlite3(query: String) {
             // Database execution
             let cursor = con.prepare(&query);
             match cursor {
-                Err(e) => println!("Error while executing query : {e}"),
+                Err(e) => Err(format!("Error while executing query : {e}")),
                 Ok(cursor) => {
+                    let mut result = String::new();
                     // Result handling (just printing for now)
                     for (i, row) in cursor.into_iter().enumerate() {
                         match row {
@@ -31,14 +32,12 @@ pub async fn query_sqlite3(query: String) {
                             Ok(row) => {
                                 // Nice formatting for user's pleasure
                                 for field in row.iter() {
-                                    print!("{}, ", extract_value(field.1));
+                                    result.push_str(&format!("{}, ", extract_value(field.1)));
                                 }
-                                println!();
                             }
                         }
                     }
-
-                    println!("\rDone !");
+                    Ok(result)
                 }
             }
         }

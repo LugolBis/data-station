@@ -1,9 +1,11 @@
 mod tools;
-mod mcp;
 mod utils;
+mod client;
+mod agent;
 
 use std::io::Write;
-use mcp::*;
+use std::sync::{Arc, Mutex};
+use client::*;
 use utils::*;
 
 #[tokio::main]
@@ -46,7 +48,9 @@ async fn main() {
                 ),
             }
         } else {
-            send_prompt(&get_prompt(input, "Manager"), &model).await;
+            let state_client = State::new(Mutex::new((String::new(), true)));
+
+            todo!("Integrate the 'client' function to this loop to launch the execution of a prompt.")
         }
     }
 }

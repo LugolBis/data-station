@@ -1,6 +1,9 @@
 use std::fs;
 use ollama_rs::error::OllamaError;
 use ollama_rs::generation::completion::GenerationResponse;
+use std::sync::{Arc, Mutex};
+
+pub type State<String> = Arc<Mutex<(String, bool)>>;
 
 pub fn get_prompt(input: String, agent_name: &str) -> String {
     let path = format!("agents/{}.txt", agent_name);
