@@ -9,7 +9,7 @@ use std::thread;
 use std::time::Duration;
 use client::*;
 use utils::*;
-use mylog::*;
+use mylog::{error};
 
 #[tokio::main]
 async fn main() {
@@ -65,20 +65,30 @@ async fn main() {
 
             while state_client.lock().unwrap().1 {
                 thread::sleep(Duration::from_millis(300));
-                let client_msg = &state_client.lock().unwrap().0;
-                let _ = std::io::stdout().flush();
-                if !client_msg.is_empty() {
-                    println!("\r{}", client_msg)
+                if let Ok(client_msg) = &state_client.lock() {
+                    //let _ = std::io::stdout().flush();
+                    if !client_msg.0.is_empty() {
+                        println!("\r{}", client_msg.0)
+                    }
+                }
+                else {
+                    error!("Can't get the client_msg.")
                 }
             }
 
             {
-                let client_msg = &state_client.lock().unwrap().0;
-                println!("{}",client_msg);
+                // Print the final result of the agents
+                if let Ok(client_msg) = &state_client.lock() {
+                    if !client_msg.0.is_empty() {
+                        println!("{}", client_msg.0)
+                    }
+                }
+                else {
+                    error!("Can't get the client_msg.")
+                }
             }
 
             let _ = client_thread.join();
-
             drop(state_client);
         }
     }

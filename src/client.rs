@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use crate::utils::State;
 use crate::agent::launch_agent;
-use mylog::*;
+use mylog::{error};
 
 pub async fn client(prompt: String, model_name: String, state: State<String>) {
     let state_agent = State::new(Mutex::new((String::new(), true)));
@@ -23,26 +23,40 @@ pub async fn client(prompt: String, model_name: String, state: State<String>) {
     while state_agent.lock().unwrap().1 {
         {
             // We get the current state of the agent and send it to the UI !
-            let agent_msg = &state_agent.lock().unwrap().0;
-            let ui_msg = &mut state.lock().unwrap().0;
-            //ui_msg.clear();
-            ui_msg.push_str(&format!("{}{}                    ",agent_msg, ".".repeat(points)));
+            if let Ok(agent_msg) = state_agent.lock() {
+                if let Ok(ui_msg) = &mut state.lock() {
+                    ui_msg.0 = agent_msg.0.clone();
+                }
+                else {
+                    error!("Can't get mut the ui_msg.")
+                }
+            }
+            else {
+                error!("Can't get the agent_msg.")
+            }
         }
 
         thread::sleep(Duration::from_millis(300));
         points = (points + 1) % 4;
     }
 
-    let _ = agent_thread.join();
-
     {
         // We get the current state of the agent and send it to the UI !
-        let agent_msg = &state_agent.lock().unwrap().0;
-        let mut ui_msg = state.lock().unwrap();
-        **ui_msg.borrow_mut() = (agent_msg.to_string(), false);
+        if let Ok(agent_msg) = &state_agent.lock() {
+            if let Ok(ui_msg) = &mut state.lock() {
+                ui_msg.0 = agent_msg.0.clone();
+                ui_msg.1 = false;
+            }
+            else {
+                error!("Can't get mut the ui_msg.")
+            }
+        }
+        else {
+            error!("Can't get the agent_msg.")
+        }
     }
 
-    let state_agent = state_agent.lock().unwrap();
+    let _ = agent_thread.join();
     drop(state_agent);
 }
 

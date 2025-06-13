@@ -6,7 +6,8 @@ use std::thread;
 use ollama_rs::Ollama;
 use ollama_rs::error::OllamaError;
 use ollama_rs::generation::completion::{request::GenerationRequest, GenerationResponse};
-use mylog::*;
+use mylog::{error};
+use tokio::sync::oneshot::error;
 
 use crate::tools::*;
 use crate::utils::*;
@@ -19,9 +20,12 @@ pub async fn launch_agent(prompt: &str, model: &str, state_agent: State<String>)
 
     {
         // Limited scope to manage the lock
-        let client_msg = &mut state_agent.lock().unwrap().0;
-        client_msg.clear();
-        client_msg.push_str("The Manager Agent has completed his task.  |   Step : 1");
+        if let Ok(client_msg) = &mut state_agent.lock() {
+            client_msg.0 = "The Manager Agent has completed his task.  |   Step : 1".to_string()
+        }
+        else {
+            error!("Can't get the client_msg.")
+        }
     }
     
     match manager_response {
@@ -57,10 +61,13 @@ pub async fn launch_agent(prompt: &str, model: &str, state_agent: State<String>)
                         match call_tool(agent_name, agent_answer.response).await {
                             Ok(answer_tool) => {
                                 {
-                                    let client_msg = &mut state_agent.lock().unwrap().0;
-                                    client_msg.clear();
-                                    client_msg.push_str(&format!("The {} Agent has completed his task.  |   Step : {}",
-                                    agent_name, step));
+                                    if let Ok(client_msg) = &mut state_agent.lock() {
+                                        client_msg.0 = format!("The {} Agent has completed his task.  |   Step : {}",
+                                            agent_name, step);
+                                    }
+                                    else {
+                                        error!("Can't get mut the client_msg.")
+                                    }
                                 }
         
                                 answer.clear();
@@ -71,8 +78,13 @@ pub async fn launch_agent(prompt: &str, model: &str, state_agent: State<String>)
                                 {
                                     let error_msg = format!("ERROR : The {} Agent hasn't completed his task.  |   Step : {}\nFailed to use his tool : {}",
                                         agent_name, step, error_tool);
-                                    let mut client_msg = state_agent.lock().unwrap();
-                                    **client_msg.borrow_mut() = (error_msg, false);
+                                    if let Ok(client_msg) = &mut state_agent.lock() {
+                                        client_msg.0 = error_msg;
+                                        client_msg.1 = false;
+                                    }
+                                    else {
+                                        error!("Can't get mut the client_msg.")
+                                    }
                                 }
                             }
                         }
@@ -81,24 +93,38 @@ pub async fn launch_agent(prompt: &str, model: &str, state_agent: State<String>)
                         {
                             let error_msg = format!("ERROR : The {} Agent hasn't completed his task.  |   Step : {}\nFailed to get a response from ollama : {}",
                                 agent_name, step, error);
-                            let mut client_msg = state_agent.lock().unwrap();
-                            **client_msg.borrow_mut() = (error_msg, false);
+                            if let Ok(client_msg) = &mut state_agent.lock() {
+                                client_msg.0 = error_msg;
+                                client_msg.1 = false;
+                            }
+                            else {
+                                error!("Can't get mut the client_msg.")
+                            }
                         }
                     }
                 }
             }
 
             {
-                let result = format!("{}", answer);
-                let mut client_msg = state_agent.lock().unwrap();
-                **client_msg.borrow_mut() = (result, false);
+                if let Ok(client_msg) = &mut state_agent.lock() {
+                    client_msg.0 = answer;
+                    client_msg.1 = false;
+                }
+                else {
+                    error!("Can't get mut the client_msg.")
+                }
             }
         },
         Err(error) => {
             {
                 let error_msg = format!("ERROR : The Manager Agent hasn't completed his task.\nFailed to get a response from ollama : {}", error);
-                let mut client_msg = state_agent.lock().unwrap();
-                **client_msg.borrow_mut() = (error_msg, false);
+                if let Ok(client_msg) = &mut state_agent.lock() {
+                    client_msg.0 = error_msg;
+                    client_msg.1 = false;
+                }
+                else {
+                    error!("Can't get mut the client_msg.")
+                }
             }
         }
     }
@@ -125,6 +151,7 @@ async fn call_tool(agent_name: &str, agent_prompt: String) -> Result<String, Str
             action_files(path, action.as_str(), content)
         },
         _ => {
+            error!("Unknow agent.");
             Err(format!("The following {} Agent hasn't access to a tool.", agent_name))
         }
     }
