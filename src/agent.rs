@@ -60,7 +60,7 @@ pub async fn launch_agent(prompt: &str, model: &str, state_agent: State<String>)
 
                 let mut prompt = get_prompt(task_prompt, &agent_name);
                 if need_previous_step && !answer.is_empty() {
-                    prompt.push_str(&format!("[Data that you need]\n{}",answer));
+                    prompt.push_str(&format!("\n[Data you need]\n{}",answer));
                 }
 
                 let agent_response = Ollama::default()

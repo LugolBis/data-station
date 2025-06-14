@@ -3,6 +3,7 @@
 use std::{fs::OpenOptions, path::PathBuf};
 use std::io::{Read, Write};
 
+use mylog::error;
 use sqlite::Value;
 
 pub async fn query_sqlite3(query: String) -> Result<String, String> {
@@ -80,11 +81,15 @@ pub fn action_files(path: &str, action: &str, content: String) -> Result<String,
             match OpenOptions::new().read(true).write(true).truncate(true).create(true).open(&path) {
                 Ok(mut file) => {
                     match file.write_all(content.as_bytes()) {
-                        Ok(_) => Err(format!("Successfully write into {} !",path.display())),
-                        Err(error) => Err(format!("Error when try to write in {}\n\t{}",path.display(),error))
+                        Ok(_) => Ok(format!("Successfully write into {} !",path.display())),
+                        Err(error) => {
+                            error!("Error when try to write content in {}\n\t{}",path.display(),error);
+                            Err(format!("Error when try to write in {}\n\t{}",path.display(),error))
+                        }
                     }
                 }
                 Err(error) => {
+                    error!("Error : with the following file : {}\n\t{}",path.display(),error);
                     Err(format!("Error : with the following file : {}\n\t{}",path.display(),error))
                 }
             }
@@ -93,11 +98,15 @@ pub fn action_files(path: &str, action: &str, content: String) -> Result<String,
             match OpenOptions::new().read(true).append(true).open(&path) {
                 Ok(mut file) => {
                     match file.write_all(content.as_bytes()) {
-                        Ok(_) => Err(format!("Successfully append content into {} !",path.display())),
-                        Err(error) => Err(format!("Error when try to append content in {}\n\t{}",path.display(),error))
+                        Ok(_) => Ok(format!("Successfully append content into {} !",path.display())),
+                        Err(error) => {
+                            error!("Error when try to append content in {}\n\t{}",path.display(),error);
+                            Err(format!("Error when try to append content in {}\n\t{}",path.display(),error))
+                        }
                     }
                 }
                 Err(error) => {
+                    error!("Error : with the following file : {}\n\t{}",path.display(),error);
                     Err(format!("Error : with the following file : {}\n\t{}",path.display(),error))
                 }
             }
@@ -110,6 +119,7 @@ pub fn action_files(path: &str, action: &str, content: String) -> Result<String,
                     Ok(result)
                 }
                 Err(error) => {
+                    error!("Error : with the following file : {}\n\t{}",path.display(),error);
                     Err(format!("Error : with the following file : {}\n\t{}",path.display(),error))
                 }
             }
