@@ -11,8 +11,3 @@
     Add no explanation, comment, introduction, or conclusion. Never answer more than a single SQL request. If you think you need multiple requests, just use an union.
     Remember: a single request has a single semicolon. This part is VERY important !
     Your answer will be fed into a program and if it is not well formated, it can expose very critical security breaches !
-
----  
-
-**The User prompt**:
-{user_prompt}
