@@ -2,6 +2,7 @@
 
 use std::{fs::OpenOptions, path::PathBuf};
 use std::io::{Read, Write};
+use std::process::Command;
 
 use mylog::error;
 use sqlite::Value;
@@ -71,58 +72,37 @@ fn extract_value(value: &Value) -> String {
     result
 }
 
-pub fn action_files(path: &str, action: &str, content: String) -> Result<String, String> {
-    let path = PathBuf::from(path);
-    let action = action.to_uppercase();
-    let action = action.as_str();
-
-    match action {
-        "WRITE" => {
-            match OpenOptions::new().read(true).write(true).truncate(true).create(true).open(&path) {
-                Ok(mut file) => {
-                    match file.write_all(content.as_bytes()) {
-                        Ok(_) => Ok(format!("Successfully write into {} !",path.display())),
-                        Err(error) => {
-                            error!("Error when try to write content in {}\n\t{}",path.display(),error);
-                            Err(format!("Error when try to write in {}\n\t{}",path.display(),error))
-                        }
-                    }
-                }
-                Err(error) => {
-                    error!("Error : with the following file : {}\n\t{}",path.display(),error);
-                    Err(format!("Error : with the following file : {}\n\t{}",path.display(),error))
-                }
-            }
-        },
-        "APPEND" => {
-            match OpenOptions::new().read(true).append(true).open(&path) {
-                Ok(mut file) => {
-                    match file.write_all(content.as_bytes()) {
-                        Ok(_) => Ok(format!("Successfully append content into {} !",path.display())),
-                        Err(error) => {
-                            error!("Error when try to append content in {}\n\t{}",path.display(),error);
-                            Err(format!("Error when try to append content in {}\n\t{}",path.display(),error))
-                        }
-                    }
-                }
-                Err(error) => {
-                    error!("Error : with the following file : {}\n\t{}",path.display(),error);
-                    Err(format!("Error : with the following file : {}\n\t{}",path.display(),error))
-                }
-            }
-        }
-        "READ" | _ => {
-            match OpenOptions::new().read(true).open(&path) {
-                Ok(mut file) => {
-                    let mut result = String::new();
-                    let _ = file.read_to_string(&mut result);
-                    Ok(result)
-                }
-                Err(error) => {
-                    error!("Error : with the following file : {}\n\t{}",path.display(),error);
-                    Err(format!("Error : with the following file : {}\n\t{}",path.display(),error))
-                }
-            }
-        },
+pub fn bash_command(agent_command: String) -> Result<String, String> {
+    if agent_command.contains("sudo") {
+        return Err(format!("Can't execute the following command due to permission : {}", agent_command))
     }
+
+    let args = shell_words::split(&agent_command)
+        .map_err(|e| format!("{}",e))?;
+    let (command, args) = args.split_first().unwrap();
+
+    let output = Command::new(command)
+        .args(args)
+        .output()
+        .map_err(|e| format!("{}",e))?;
+
+    if output.status.success() {
+        let msg = String::from_utf8_lossy(&output.stdout).to_string();
+        if !msg.is_empty() {
+            Ok(msg)
+        }
+        else {
+            Ok(format!("Successfully run the following comand : `{}`", agent_command))
+        }
+    }
+    else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+
+#[test]
+fn testo() {
+    let res = bash_command("sed -i 's/juju/kikouuu/g' /home/lugolbis/Bureau/data-station/test.txt".to_string());
+    println!("{:?}",res);
 }

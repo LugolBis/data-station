@@ -59,44 +59,35 @@ async fn ui() {
                 ),
             }
         } else {
-            let state_client = State::new(Mutex::new((String::new(), true)));
+            let (mut tx, mut rx) = tokio::sync::mpsc::channel(100);
 
             let client_thread = tokio::spawn({
-                let state_agent = Arc::clone(&state_client);
                 async move || {
-                    client(input, model, state_agent).await;
+                    client(input, model, tx).await;
                 }
             } ());
 
             let mut run = true;
             while run {
-                let _ = tokio::time::sleep(Duration::from_millis(10)).await;
-                if let Ok(client_msg) = &state_client.lock() {
-                    run = client_msg.1;
-                    if !client_msg.0.is_empty() {
-                        print!("\r{}", client_msg.0)
-                    }
-                }
-                else {
-                    error!("Can't get the client_msg.")
-                }
-            }
+                //let _ = tokio::time::sleep(Duration::from_millis(10)).await;
 
-            {
-                // Print the final result of the agents
-                if let Ok(client_msg) = &state_client.lock() {
-                    if !client_msg.0.is_empty() {
+                match rx.recv().await {
+                    Some(State::Update(message)) => {
+                        print!("\r{}", message)
+                    },
+                    Some(State::Done(message)) => {
                         print!("\r");
-                        println!("{}", client_msg.0)
+                        println!("{}", message);
+                        run = false
+                    },
+                    None => {
+                        error!("The receiver receive nothing...");
                     }
-                }
-                else {
-                    error!("Can't get the client_msg.")
                 }
             }
 
             let _ = client_thread.await;
-            drop(state_client);
+            drop(rx);
         }
     }
 }

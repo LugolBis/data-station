@@ -2,63 +2,60 @@
 
 use std::{sync::{Arc,Mutex}, time::Duration};
 use tokio;
+use crate::tokio::sync::mpsc::Sender;
 use std::io::Write;
 
 use crate::utils::State;
 use crate::agent::launch_agent;
 use mylog::{error};
 
-pub async fn client(prompt: String, model_name: String, state: State<String>) {
-    let state_agent = State::new(Mutex::new((String::from("Thinking"), true)));
+pub async fn client(prompt: String, model_name: String, ui_tx: Sender<State>) {
+    let (mut tx, mut rx) = tokio::sync::mpsc::channel(100);
 
     let agent_thread = tokio::spawn({
-        let state_agent_ = Arc::clone(&state_agent);
         async move || {
-            launch_agent(prompt.as_str(), model_name.as_str(), state_agent_).await;
+            launch_agent(prompt.as_str(), model_name.as_str(), tx).await;
         }
     } ());
 
     let mut points = 0usize;
     let mut run = true;
+    let mut current_msg = String::from("Thinking");
     while run {
-        {   
-            // We get the current state of the agent and send it to the UI !
-            if let Ok(agent_msg) = state_agent.lock() {
-                run = agent_msg.1;
-                if let Ok(ui_msg) = &mut state.lock() {
-                    ui_msg.0 = format!("{}{}          ",agent_msg.0.clone(),".".repeat(points));
+        //let _ = tokio::time::sleep(Duration::from_millis(10)).await;
+                
+        match rx.recv().await {
+            Some(State::Update(msg)) => {
+                current_msg.clear();
+                current_msg.push_str(&msg);
+                let msg = format!("{}{}          ", msg.clone(), ".".repeat(points));
+
+                if let Err(error) = ui_tx.send(State::Update(msg)).await {
+                    error!("Sender client -x-> UI : {}", error)
+                }
+            },
+            Some(State::Done(msg)) => {
+                if let Err(error) = ui_tx.send(State::Done(msg)).await {
+                    error!("Sender client -x-> UI : {}", error)
                 }
                 else {
-                    error!("Can't get mut the ui_msg.")
+                    run = false // We stop the client only if the UI receive the msg
                 }
-            }
-            else {
-                error!("Can't get the agent_msg.")
+            },
+            None => {
+                let msg = format!("{}{}          ", current_msg.clone(), ".".repeat(points));
+                if let Err(error) = ui_tx.send(State::Update(msg)).await {
+                    error!("Sender client -x-> UI : {}", error)
+                }
             }
         }
 
-        let _  = tokio::time::sleep(Duration::from_millis(10)).await;
         points = (points + 1) % 4;
     }
 
-    {
-        // We get the current state of the agent and send it to the UI !
-        if let Ok(agent_msg) = &state_agent.lock() {
-            if let Ok(ui_msg) = &mut state.lock() {
-                ui_msg.0 = agent_msg.0.clone();
-                ui_msg.1 = false;
-            }
-            else {
-                error!("Can't get mut the ui_msg.")
-            }
-        }
-        else {
-            error!("Can't get the agent_msg.")
-        }
-    }
-
     let _ = agent_thread.await;
-    drop(state_agent);
+    drop(rx);
+    drop(ui_tx);
 }
 
 // TODO : add a counter to display the number of seconds

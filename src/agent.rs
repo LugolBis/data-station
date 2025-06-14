@@ -1,31 +1,26 @@
 use ollama_rs::Ollama;
 use ollama_rs::generation::completion::request::GenerationRequest;
 use mylog::{error,info};
+use crate::tokio::sync::mpsc::Sender;
 
 use crate::tools::*;
 use crate::utils::*;
 
-pub async fn launch_agent(prompt: &str, model: &str, state_agent: State<String>) {
+pub async fn launch_agent(prompt: &str, model: &str, client_tx: Sender<State>) {
 
     let prompt = get_prompt(prompt.to_string(), "Manager");
     let manager_response = Ollama::default()
         .generate(GenerationRequest::new(model.to_string(), prompt))
         .await;
 
-    {
-        // Limited scope to manage the lock
-        if let Ok(client_msg) = &mut state_agent.lock() {
-            client_msg.0 = "The Manager Agent has completed his task.  |   Step : 1".to_string()
-        }
-        else {
-            error!("Can't get the client_msg.")
-        }
+    if let Err(error) = client_tx.send(State::Update("The Manager Agent has completed his task.  |   Step : 1".to_string())).await {
+        error!("Sender agent -x-> client : {}", error);
     }
     
     match manager_response {
         Ok(answer) => {
             let answer = answer.response;
-            info!("Manager response :\n'''\n{}\n'''",answer);
+            info!("Manager response :\n{}\n\n",answer);
             let mut tasks = answer.split("---")
                 .into_iter().map(|s| s.to_string()).collect::<Vec<String>>();
             let _ = tasks.pop(); // Removing the empty task due to the previous .split()
@@ -45,16 +40,11 @@ pub async fn launch_agent(prompt: &str, model: &str, state_agent: State<String>)
                     task_prompt.push_str(&task_infos.2);
                 }
                 else {
-                    {
-                        let error_msg = format!("Failed when try to parse an intermediate task. The last answer is :\n\n{}",answer);
-                        if let Ok(client_msg) = &mut state_agent.lock() {
-                            client_msg.0 = error_msg;
-                            client_msg.1 = false;
-                        }
-                        else {
-                            error!("Can't get mut the client_msg.")
-                        }
+                    let error_msg = format!("Failed when try to parse an intermediate task. The last answer is :\n\n{}",answer);
+                    if let Err(error) = client_tx.send(State::Done(error_msg)).await {
+                        error!("Sender agent -x-> client : {}", error);
                     }
+                    drop(client_tx);
                     return;
                 }
 
@@ -69,17 +59,13 @@ pub async fn launch_agent(prompt: &str, model: &str, state_agent: State<String>)
 
                 match agent_response {
                     Ok(agent_answer) => {
+                        info!("{} response :\n{}\n\n", agent_name, agent_answer.response);
                         answer.push_str(&agent_answer.response);
                         match call_tool(&agent_name, agent_answer.response).await {
                             Ok(answer_tool) => {
-                                {
-                                    if let Ok(client_msg) = &mut state_agent.lock() {
-                                        client_msg.0 = format!("The {} Agent has completed his task.  |   Step : {}",
-                                            agent_name, step);
-                                    }
-                                    else {
-                                        error!("Can't get mut the client_msg.")
-                                    }
+                                let msg = format!("The {} Agent has completed his task.  |   Step : {}", agent_name, step);
+                                if let Err(error) = client_tx.send(State::Update(msg)).await {
+                                    error!("Sender agent -x-> client : {}", error);
                                 }
         
                                 answer.clear();
@@ -87,58 +73,39 @@ pub async fn launch_agent(prompt: &str, model: &str, state_agent: State<String>)
                                 step += 1;
                             },
                             Err(_) => {
-                                {
-                                    let error_msg = format!("The following answer could be wrong, paid attention :\n{}", answer);
-                                    if let Ok(client_msg) = &mut state_agent.lock() {
-                                        client_msg.0 = error_msg;
-                                        client_msg.1 = false;
-                                    }
-                                    else {
-                                        error!("Can't get mut the client_msg.")
-                                    }
+                                let error_msg = format!("The following answer could be wrong, paid attention :\n{}", answer);
+                                if let Err(error) = client_tx.send(State::Done(error_msg)).await {
+                                    error!("Sender agent -x-> client : {}", error);
                                 }
+                                drop(client_tx);
                                 return;
                             }
                         }
                     },
                     Err(error) => {
-                        {
-                            let error_msg = format!("ERROR : The {} Agent hasn't completed his task.  |   Step : {}\nFailed to get a response from ollama : {}",
-                                agent_name, step, error);
-                            if let Ok(client_msg) = &mut state_agent.lock() {
-                                client_msg.0 = error_msg;
-                                client_msg.1 = false;
-                            }
-                            else {
-                                error!("Can't get mut the client_msg.")
-                            }
+                        let error_msg = format!("ERROR : The {} Agent hasn't completed his task.  |   Step : {}\nFailed to get a response from ollama : {}",
+                            agent_name, step, error);
+                        if let Err(error) = client_tx.send(State::Done(error_msg)).await {
+                            error!("Sender agent -x-> client : {}", error);
                         }
+                        drop(client_tx);
                         return;
                     }
                 }
             }
 
-            {
-                if let Ok(client_msg) = &mut state_agent.lock() {
-                    client_msg.0 = answer;
-                    client_msg.1 = false;
-                }
-                else {
-                    error!("Can't get mut the client_msg.")
-                }
+            if let Err(error) = client_tx.send(State::Done(answer)).await {
+                error!("Sender agent -x-> client : {}", error);
             }
+            drop(client_tx);
+            return;
         },
         Err(error) => {
-            {
-                let error_msg = format!("ERROR : The Manager Agent hasn't completed his task.\nFailed to get a response from ollama : {}", error);
-                if let Ok(client_msg) = &mut state_agent.lock() {
-                    client_msg.0 = error_msg;
-                    client_msg.1 = false;
-                }
-                else {
-                    error!("Can't get mut the client_msg.")
-                }
+            let error_msg = format!("ERROR : The Manager Agent hasn't completed his task.\nFailed to get a response from ollama : {}", error);
+            if let Err(error) = client_tx.send(State::Done(error_msg)).await {
+                error!("Sender agent -x-> client : {}", error);
             }
+            drop(client_tx);
             return;
         }
     }
@@ -146,23 +113,11 @@ pub async fn launch_agent(prompt: &str, model: &str, state_agent: State<String>)
 
 async fn call_tool(agent_name: &str, agent_prompt: String) -> Result<String, String> {
     match agent_name {
+        "Bash" => {
+            bash_command(agent_prompt)
+        },
         "Sqlite3" => {
             query_sqlite3(agent_prompt).await
-        },
-        "File_System" => {
-            let lines = agent_prompt.split("\n").into_iter().collect::<Vec<&str>>();
-            let path = lines[0];
-            let mut action = String::new();
-            let action_ = lines[1].to_uppercase();
-            for action_type in ["READ","WRITE","APPEND"] {
-                if action_.contains(action_type) {
-                    action.push_str(action_type);
-                    break;
-                }
-            }
-            let content = lines[2..lines.len()].into_iter()
-                .map(|s| s.to_string()).collect::<String>();
-            action_files(path, action.as_str(), content)
         },
         "LLM_Core" => {
             Ok(get_prompt(agent_prompt, "LLM_Core"))

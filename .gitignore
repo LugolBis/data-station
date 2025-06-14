@@ -1,3 +1,4 @@
 target/*
 res/clients.db
 logs.txt
+test.txt

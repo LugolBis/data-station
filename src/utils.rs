@@ -3,7 +3,10 @@ use ollama_rs::error::OllamaError;
 use ollama_rs::generation::completion::GenerationResponse;
 use std::sync::{Arc, Mutex};
 
-pub type State<String> = Arc<Mutex<(String, bool)>>;
+pub enum State {
+    Update(String),
+    Done(String)
+}
 
 pub fn get_prompt(input: String, agent_name: &str) -> String {
     let path = format!("agents/{}.txt", agent_name);
@@ -15,7 +18,7 @@ pub fn get_prompt(input: String, agent_name: &str) -> String {
     }
 }
 
-const AGENTS: [&str;3] = ["LLM_Core", "File_System", "Sqlite3"];
+const AGENTS: [&str;3] = ["Bash", "LLM_Core", "Sqlite3"];
 
 fn parse_agent(agent_name: &str) -> Option<String> {
     for agent in AGENTS {
