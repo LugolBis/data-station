@@ -8,6 +8,10 @@ use crate::utils::*;
 
 pub async fn launch_agent(prompt: &str, model: &str, client_tx: Sender<State>) {
 
+    if let Err(error) = client_tx.send(State::Update("Thinking".to_string())).await {
+        error!("Sender agent -x-> client : {}", error);
+    }
+
     let prompt = get_prompt(prompt.to_string(), "Manager");
     let manager_response = Ollama::default()
         .generate(GenerationRequest::new(model.to_string(), prompt))
@@ -21,9 +25,7 @@ pub async fn launch_agent(prompt: &str, model: &str, client_tx: Sender<State>) {
         Ok(answer) => {
             let answer = answer.response;
             info!("Manager response :\n{}\n\n",answer);
-            let mut tasks = answer.split("---")
-                .into_iter().map(|s| s.to_string()).collect::<Vec<String>>();
-            let _ = tasks.pop(); // Removing the empty task due to the previous .split()
+            let tasks = parse_tasks(answer);
             
             // This will be used to store the result of each previous step.
             let mut answer = String::new();
@@ -44,7 +46,6 @@ pub async fn launch_agent(prompt: &str, model: &str, client_tx: Sender<State>) {
                     if let Err(error) = client_tx.send(State::Done(error_msg)).await {
                         error!("Sender agent -x-> client : {}", error);
                     }
-                    drop(client_tx);
                     return;
                 }
 
@@ -77,7 +78,6 @@ pub async fn launch_agent(prompt: &str, model: &str, client_tx: Sender<State>) {
                                 if let Err(error) = client_tx.send(State::Done(error_msg)).await {
                                     error!("Sender agent -x-> client : {}", error);
                                 }
-                                drop(client_tx);
                                 return;
                             }
                         }
@@ -88,7 +88,6 @@ pub async fn launch_agent(prompt: &str, model: &str, client_tx: Sender<State>) {
                         if let Err(error) = client_tx.send(State::Done(error_msg)).await {
                             error!("Sender agent -x-> client : {}", error);
                         }
-                        drop(client_tx);
                         return;
                     }
                 }
@@ -97,7 +96,6 @@ pub async fn launch_agent(prompt: &str, model: &str, client_tx: Sender<State>) {
             if let Err(error) = client_tx.send(State::Done(answer)).await {
                 error!("Sender agent -x-> client : {}", error);
             }
-            drop(client_tx);
             return;
         },
         Err(error) => {
@@ -105,7 +103,6 @@ pub async fn launch_agent(prompt: &str, model: &str, client_tx: Sender<State>) {
             if let Err(error) = client_tx.send(State::Done(error_msg)).await {
                 error!("Sender agent -x-> client : {}", error);
             }
-            drop(client_tx);
             return;
         }
     }

@@ -92,17 +92,10 @@ pub fn bash_command(agent_command: String) -> Result<String, String> {
             Ok(msg)
         }
         else {
-            Ok(format!("Successfully run the following comand : `{}`", agent_command))
+            Ok(format!("Successfully run the following comand :\n`{}`", agent_command))
         }
     }
     else {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
-}
-
-
-#[test]
-fn testo() {
-    let res = bash_command("sed -i 's/juju/kikouuu/g' /home/lugolbis/Bureau/data-station/test.txt".to_string());
-    println!("{:?}",res);
 }

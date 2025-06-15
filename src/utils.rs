@@ -52,3 +52,11 @@ pub fn parse_task(task: String) -> Result<(String, bool, String), String> {
         Err("Inconsistant format response from the Manager agent.".to_string())
     }
 }
+
+pub fn parse_tasks(manager_answer: String) -> Vec<String> {
+    manager_answer.split("---")
+        .into_iter()
+        .filter(|s| !(s.trim()).is_empty())
+        .map(|s| s.trim_start().to_string())
+        .collect::<Vec<String>>()
+}

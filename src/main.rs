@@ -69,15 +69,15 @@ async fn ui() {
 
             let mut run = true;
             while run {
-                //let _ = tokio::time::sleep(Duration::from_millis(10)).await;
-
                 match rx.recv().await {
                     Some(State::Update(message)) => {
-                        print!("\r{}", message)
+                        print!("\r{}", message);
+                        let _ = io::stdout().flush();
                     },
                     Some(State::Done(message)) => {
                         print!("\r");
                         println!("{}", message);
+                        let _ = io::stdout().flush();
                         run = false
                     },
                     None => {
@@ -87,7 +87,6 @@ async fn ui() {
             }
 
             let _ = client_thread.await;
-            drop(rx);
         }
     }
 }
