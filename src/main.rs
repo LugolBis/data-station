@@ -23,7 +23,7 @@ async fn ui() {
     );
 
     loop {
-        let mut model = "gemma3:latest".to_string();
+        let mut model = "gemma3:1b".to_string();
 
         print!("\r>>> ");
         let _ = std::io::stdout().flush();

@@ -110,14 +110,15 @@ pub async fn launch_agent(prompt: &str, model: &str, client_tx: Sender<State>) {
 
 async fn call_tool(agent_name: &str, agent_prompt: String) -> Result<String, String> {
     match agent_name {
-        "Bash" => {
+        "Execute_Command" => {
+            info!("Tool selected is 'Bash'.");
             bash_command(agent_prompt)
         },
         "Sqlite3" => {
             query_sqlite3(agent_prompt).await
         },
         "LLM_Core" => {
-            Ok(get_prompt(agent_prompt, "LLM_Core"))
+            Ok(agent_prompt)
         },
         _ => {
             error!("Unknow agent : {}",agent_name);

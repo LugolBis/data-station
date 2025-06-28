@@ -2,6 +2,7 @@ use std::fs;
 use ollama_rs::error::OllamaError;
 use ollama_rs::generation::completion::GenerationResponse;
 use std::sync::{Arc, Mutex};
+use mylog::error;
 
 pub enum State {
     Update(String),
@@ -10,15 +11,20 @@ pub enum State {
 
 pub fn get_prompt(input: String, agent_name: &str) -> String {
     let path = format!("agents/{}.txt", agent_name);
-    if let Ok(context) = fs::read_to_string(&path) {
-        context.replace("{user_prompt}", &input)
-    }
-    else {
-        "{user_prompt}".to_string()
+    match fs::read_to_string(&path) {
+        Ok(context) => {
+            context.replace("{user_prompt}", &input)
+        },
+        Err(error) => {
+            error!("Failed to get the prompt for the agent '{}'\n{}\n\n",agent_name,error);
+            "{user_prompt}".to_string()
+        }
     }
 }
 
-const AGENTS: [&str;3] = ["Bash", "LLM_Core", "Sqlite3"];
+const AGENTS: [&str;3] = ["Execute_Command", "LLM_Core", "Sqlite3"];
+
+const TASK_SEPARATOR: &str = "Separator___";
 
 fn parse_agent(agent_name: &str) -> Option<String> {
     for agent in AGENTS {
@@ -54,7 +60,7 @@ pub fn parse_task(task: String) -> Result<(String, bool, String), String> {
 }
 
 pub fn parse_tasks(manager_answer: String) -> Vec<String> {
-    manager_answer.split("---")
+    manager_answer.split(TASK_SEPARATOR)
         .into_iter()
         .filter(|s| !(s.trim()).is_empty())
         .map(|s| s.trim_start().to_string())
