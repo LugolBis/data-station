@@ -3,7 +3,7 @@ Data Station is a `simulacrum` of a ***MCP server*** with ***AI Agents***. The a
 The project is designed to run **locally** for **security** and **privacy**, that why it's only about small AI models here (between **1B**-**4B**).<br><br>
 The architecture is based on few AI agents to decompose complexe task and use tools. When the user send a prompt there is an agent *Manager* who's decompose it to be done by the other agents (*LLM_Core*, *Execute_Command*, *Sqlite3*). The other agents can access to specified tools and their task is just to create an input for built-in functions, that how we turn a simple *LLM* chat into a `simulacrum` of ***MCP server***.
 
-## Dependences
+## Dependencies
 Please have ollama up and running with any LLM model installed. You can choose what model to use with the `/model [your model]` command. Default is `gemma3:latest`.
 
 ## How to run ?
